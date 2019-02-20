@@ -111,7 +111,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
 
   Widget _createPageView(BuildContext ctx) {
     double _fontSize = (_currentOrientation == Orientation.portrait
-            ? MediaQuery.of(ctx).size.height
+            ? MediaQuery.of(ctx).size.width
             : MediaQuery.of(ctx).size.height) /
         4.0;
     Widget _pageView = TabBarView(
