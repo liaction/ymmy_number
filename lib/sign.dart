@@ -4,6 +4,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+///
+/// [Github](https://github.com/4Q-s-r-o/signature)
 ///Signature canvas. All parameters are optional. It expands by default. This behaviour can be
 ///overridden using width and/or height parameters.
 class Signature extends StatefulWidget {

@@ -17,86 +17,52 @@ Future main() async {
   ));
 }
 
-const NUMBERS = [
-  '0',
-  '1',
-  '2',
-  '3',
-  '4',
-  '5',
-  '6',
-  '7',
-  '8',
-  '9',
-  '一',
-  '二',
-  '三',
-  '四',
-  '五',
-  '六',
-  '七',
-  '八',
-  '九',
-  '十',
-  '千',
-  '万'
-];
-var NUMBERS_MAP = NUMBERS.asMap();
-
 class MyApp extends StatefulWidget {
   @override
   _MyAppState createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
+class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   Signature _signatureCanvas;
+
+  List<String> _numbers = List();
+  Map<int, String> _numbersMap = Map();
 
   TabController _tabController;
   var _tabIndex = 0;
   var _currentOrientation = Orientation.portrait;
 
+  TextEditingController _editingController;
+  FocusNode _focusNode;
+
   // create some value
   Color _pickerColor;
   Color _currentColor;
   Color _currentTextColor = Colors.white;
-  ValueChanged<Color> onColorChanged;
-
   Color _penColor = Colors.black;
-
-// bind some values with [ValueChanged<Color>] callback
-  void changeThemeColor(Color color) {
-    setState(() => _pickerColor = color);
-    saveThemeColor(color);
-  }
-
-  void changePenColor(Color color) {
-    setState(() => _penColor = color);
-    savePenColor(color);
-    _signatureCanvas.updatePenColor(penColor: _penColor);
-  }
-
-  void _whenTabChange() {
-    if (_tabIndex != _tabController.index) {
-      _tabIndex = _tabController.index;
-      _signatureCanvas.clear();
-      setState(() {});
-    }
-  }
 
   @override
   void initState() {
     _initData();
-    _tabController = TabController(length: NUMBERS.length, vsync: this);
+    _tabController = TabController(length: _numbers.length, vsync: this);
+    _editingController = TextEditingController();
+    _focusNode = FocusNode();
     super.initState();
     _tabController.animateTo(_tabIndex);
     _tabController.addListener(_whenTabChange);
   }
 
   Future _initData() async {
+    getText().then((list) {
+      _numbers.addAll(list);
+      _numbersMap.addAll(list.asMap());
+      _updateWhenTabNumberChange();
+      setState(() {});
+    });
     _currentColor = await getThemeColor(defaultColor: Colors.blue);
     _penColor = await getPenColor(defaultColor: Colors.black);
     setState(() {});
-    Future.delayed(Duration(seconds: 1),(){
+    Future.delayed(Duration(seconds: 1), () {
       _changeStatusBarColor();
     });
     _signatureCanvas.updatePenColor(penColor: _penColor);
@@ -105,6 +71,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _tabController.dispose();
+    _editingController.dispose();
     _tabController.removeListener(_whenTabChange);
     super.dispose();
   }
@@ -115,7 +82,7 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
             : MediaQuery.of(ctx).size.height) /
         4.0;
     Widget _pageView = TabBarView(
-      children: NUMBERS_MAP.values
+      children: _numbersMap.values
           .map(
             (value) => Container(
                   color: Colors.white,
@@ -142,29 +109,35 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
   void _fabClick() async {
     var result = await showModalBottomSheet(
       context: context,
-      builder: (ctx) => Center(
-            child: Wrap(
-              children: NUMBERS_MAP.keys
-                  .map(
-                    (val) => FlatButton(
-                          color: _tabIndex == val ? Colors.green : Colors.white,
-                          onPressed: () {
-                            Navigator.of(context).pop(val);
-                          },
-                          child: Text(
-                            NUMBERS_MAP[val],
-                            style: TextStyle(
-                              fontSize: 23.0,
+      builder: (ctx) => ListView(
+            children: <Widget>[
+              Center(
+                child: Wrap(
+                  children: _numbersMap.keys
+                      .map(
+                        (val) => FlatButton(
                               color: _tabIndex == val
-                                  ? Colors.white
-                                  : Colors.blueGrey,
-                              fontWeight: FontWeight.bold,
+                                  ? Colors.green
+                                  : Colors.white,
+                              onPressed: () {
+                                Navigator.of(context).pop(val);
+                              },
+                              child: Text(
+                                _numbersMap[val],
+                                style: TextStyle(
+                                  fontSize: 23.0,
+                                  color: _tabIndex == val
+                                      ? Colors.white
+                                      : Colors.blueGrey,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                  )
-                  .toList(),
-            ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
           ),
     );
     if (result != null && result != _tabIndex) {
@@ -212,13 +185,13 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
         ),
         actions: <Widget>[
           Opacity(
-            opacity: _tabIndex == NUMBERS.length - 1 ? 0 : 1,
+            opacity: _tabIndex == _numbers.length - 1 ? 0 : 1,
             child: IconButton(
                 iconSize: 36.0,
                 color: _currentTextColor,
                 icon: Icon(Icons.keyboard_arrow_right),
                 onPressed: () {
-                  if (_tabIndex == NUMBERS.length - 1) return;
+                  if (_tabIndex == _numbers.length - 1) return;
                   _tabController.animateTo(_tabIndex + 1);
                 }),
           ),
@@ -229,10 +202,13 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
         backgroundColor: _currentColor,
         elevation: 1.0,
         onPressed: _fabClick,
-        child: Icon(
-          Icons.airplanemode_active,
-          color: _currentTextColor,
-          size: 36.0,
+        child: GestureDetector(
+          onLongPress: _editAddOrRemoveText,
+          child: Icon(
+            Icons.airplanemode_active,
+            color: _currentTextColor,
+            size: 36.0,
+          ),
         ),
       ),
       body: _currentOrientation == Orientation.portrait
@@ -317,13 +293,6 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
         builder: (ctx) => AlertDialog(
               title: const Text('自定义颜色'),
               content: SingleChildScrollView(
-//          child: ColorPicker(
-//            pickerColor: pickerColor,
-//            onColorChanged: changeColor,
-//            enableLabel: true,
-//            pickerAreaHeightPercent: 0.8,
-//          ),
-                // Use Material color picker
                 child: MaterialPicker(
                   pickerColor: _pickerColor,
                   onColorChanged: changeThemeColor,
@@ -373,5 +342,76 @@ class _MyAppState extends State<MyApp> with SingleTickerProviderStateMixin {
                 ),
               ],
             ));
+  }
+
+  ///
+  /// 编辑文字
+  ///
+  Future _editAddOrRemoveText() async {
+    String result = await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+              title: const Text('添加新文字'),
+              content: SingleChildScrollView(
+                child: TextFormField(
+                  controller: _editingController,
+                  focusNode: _focusNode,
+                  maxLength: 1,
+                  decoration: InputDecoration(
+                    hintText: "输入新的文字",
+                    labelText: "新文字",
+                    helperText: "不能输入已经存在的文字,比如:0,1,一",
+                  ),
+                  autovalidate: true,
+                  validator: (str) {
+                    if (str.isNotEmpty && _numbers.contains(str)) {
+                      return "该文字已经存在";
+                    }
+                  },
+                ),
+              ),
+              actions: <Widget>[
+                FlatButton(
+                  child: Text('完成'),
+                  onPressed: () {
+                    var _text = _editingController.text.trim();
+                    _editingController.clear();
+                    Navigator.of(context).pop(_text);
+                  },
+                ),
+              ],
+            ));
+    if (result != null && result.isNotEmpty && !_numbers.contains(result)) {
+      saveText(_numbers);
+      _numbers.add(result);
+      _numbersMap[_numbersMap.length] = result;
+      _updateWhenTabNumberChange();
+      setState(() {});
+    }
+  }
+
+  void changeThemeColor(Color color) {
+    setState(() => _pickerColor = color);
+    saveThemeColor(color);
+  }
+
+  void changePenColor(Color color) {
+    setState(() => _penColor = color);
+    savePenColor(color);
+    _signatureCanvas.updatePenColor(penColor: _penColor);
+  }
+
+  void _whenTabChange() {
+    if (_tabIndex != _tabController.index) {
+      _tabIndex = _tabController.index;
+      _signatureCanvas.clear();
+      setState(() {});
+    }
+  }
+
+  void _updateWhenTabNumberChange() {
+    _tabController.removeListener(_whenTabChange);
+    _tabController = TabController(length: _numbers.length, vsync: this);
+    _tabController.addListener(_whenTabChange);
   }
 }
