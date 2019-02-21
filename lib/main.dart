@@ -1,8 +1,8 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_colorpicker/block_picker.dart';
-import 'package:flutter_colorpicker/material_picker.dart';
+import 'package:ymwy_number/flutter_colorpicker/block_picker.dart';
+import 'package:ymwy_number/flutter_colorpicker/material_picker.dart';
 import 'package:flutter_statusbarcolor/flutter_statusbarcolor.dart';
 import 'package:ymwy_number/sign.dart';
 import 'package:ymwy_number/ymwy_sp.dart';
@@ -43,6 +43,7 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   Color _penColor = Colors.black;
 
   bool _canRemoveText = false;
+  bool _hideTextPageView = false;
 
   @override
   void initState() {
@@ -84,27 +85,30 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
             ? MediaQuery.of(ctx).size.width
             : MediaQuery.of(ctx).size.height) /
         4.0;
-    Widget _pageView = TabBarView(
-      children: _numbersMap.values
-          .map(
-            (value) => Container(
-                  color: Colors.white,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      Text(
-                        value,
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: _fontSize,
+    Widget _pageView = Offstage(
+      offstage: _hideTextPageView,
+      child: TabBarView(
+        children: _numbersMap.values
+            .map(
+              (value) => Container(
+                    color: Colors.white,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          value,
+                          style: TextStyle(
+                            color: Colors.black,
+                            fontSize: _fontSize,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-          )
-          .toList(),
-      controller: _tabController,
+            )
+            .toList(),
+        controller: _tabController,
+      ),
     );
     return _pageView;
   }
@@ -239,63 +243,82 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
         return Future.value(false);
       },
       child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: _currentColor,
-          title: GestureDetector(
-            onLongPress: _showColorPick,
-            child: Text(
-              "雨檬识字",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: _currentTextColor,
+        appBar: !_hideTextPageView
+            ? AppBar(
+                backgroundColor: _currentColor,
+                title: GestureDetector(
+                  onLongPress: _showColorPick,
+                  onTap: () {
+                    _hideTextPageView = !_hideTextPageView;
+                    setState(() {});
+                  },
+                  child: Text(
+                    "雨檬识字",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _currentTextColor,
+                    ),
+                  ),
+                ),
+                leading: Offstage(
+                  offstage: _tabIndex == 0,
+                  child: IconButton(
+                      iconSize: 36.0,
+                      color: _currentTextColor,
+                      icon: Icon(Icons.keyboard_arrow_left),
+                      onPressed: () {
+                        if (_tabIndex == 0) return;
+                        _tabController.animateTo(_tabIndex - 1);
+                      }),
+                ),
+                actions: <Widget>[
+                  Offstage(
+                    offstage:
+                        _tabIndex == _numbers.length - 1,
+                    child: IconButton(
+                        iconSize: 36.0,
+                        color: _currentTextColor,
+                        icon: Icon(Icons.keyboard_arrow_right),
+                        onPressed: () {
+                          if (_tabIndex == _numbers.length - 1) return;
+                          _tabController.animateTo(_tabIndex + 1);
+                        }),
+                  ),
+                  Visibility(
+                    child: _buildClearCakeLayout(),
+                    visible: false,
+                  ),
+                ],
+                centerTitle: true,
+              )
+            : PreferredSize(
+                child: Container(),
+                preferredSize: Size.fromHeight(0),
               ),
-            ),
-          ),
-          leading: Opacity(
-            opacity: _tabIndex == 0 ? 0 : 1,
-            child: IconButton(
-                iconSize: 36.0,
-                color: _currentTextColor,
-                icon: Icon(Icons.keyboard_arrow_left),
-                onPressed: () {
-                  if (_tabIndex == 0) return;
-                  _tabController.animateTo(_tabIndex - 1);
-                }),
-          ),
-          actions: <Widget>[
-            Opacity(
-              opacity: _tabIndex == _numbers.length - 1 ? 0 : 1,
-              child: IconButton(
-                  iconSize: 36.0,
-                  color: _currentTextColor,
-                  icon: Icon(Icons.keyboard_arrow_right),
-                  onPressed: () {
-                    if (_tabIndex == _numbers.length - 1) return;
-                    _tabController.animateTo(_tabIndex + 1);
-                  }),
-            ),
-          ],
-          centerTitle: true,
-        ),
-        floatingActionButton: FloatingActionButton(
-          backgroundColor: _currentColor,
-          elevation: 1.0,
-          onPressed: _fabClick,
-          child: GestureDetector(
-            onLongPress: _editAddOrRemoveText,
-            onDoubleTap: () {
-              if (_numbers.length <= YMWY_NUMBERS_DEFAULT.length) {
-                _editAddOrRemoveText();
-                return;
-              }
-              _canRemoveText = true;
-              _fabClick();
-            },
-            child: Icon(
-              Icons.airplanemode_active,
-              color: _currentTextColor,
-              size: 36.0,
-            ),
+        floatingActionButton: Offstage(
+          offstage: false,
+          child: FloatingActionButton(
+            backgroundColor: _currentColor,
+            elevation: 1.0,
+            onPressed: _fabClick,
+            child: !_hideTextPageView
+                ? GestureDetector(
+                    onLongPress: _editAddOrRemoveText,
+                    onDoubleTap: () {
+                      if (_numbers.length <= YMWY_NUMBERS_DEFAULT.length) {
+                        _editAddOrRemoveText();
+                        return;
+                      }
+                      _canRemoveText = true;
+                      _fabClick();
+                    },
+                    child: Icon(
+                      Icons.airplanemode_active,
+                      color: _currentTextColor,
+                      size: 36.0,
+                    ),
+                  )
+                : _buildClearCakeLayout(),
           ),
         ),
         body: _currentOrientation == Orientation.portrait
@@ -350,30 +373,39 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     );
   }
 
-  Container _buildBottomLayout() {
-    return Container(
-      color: _currentColor,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        mainAxisSize: MainAxisSize.max,
-        children: <Widget>[
-          GestureDetector(
-            onLongPress: _choosePenColor,
-            child: IconButton(
-              icon: const Icon(Icons.cake),
-              iconSize: 36.0,
-              color: _currentTextColor,
-              onPressed: () {
-                setState(() {
-                  return _signatureCanvas.clear();
-                });
-              },
-            ),
-          ),
-        ],
+  Widget _buildBottomLayout() {
+    return Offstage(
+      offstage: _hideTextPageView,
+      child: Container(
+        color: _currentColor,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          mainAxisSize: MainAxisSize.max,
+          children: <Widget>[
+            _buildClearCakeLayout(),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _buildClearCakeLayout() => GestureDetector(
+        onLongPress: _choosePenColor,
+        onDoubleTap: () {
+          _hideTextPageView = !_hideTextPageView;
+          setState(() {});
+        },
+        child: IconButton(
+          icon: const Icon(Icons.cake),
+          iconSize: 36.0,
+          color: _currentTextColor,
+          onPressed: () {
+            setState(() {
+              return _signatureCanvas.clear();
+            });
+          },
+        ),
+      );
 
   void _showColorPick() {
     showDialog(
@@ -384,7 +416,7 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
                 child: MaterialPicker(
                   pickerColor: _pickerColor,
                   onColorChanged: changeThemeColor,
-                  enableLabel: true, // only on portrait mode
+                  enableLabel: false, // only on portrait mode
                 ),
               ),
               actions: <Widget>[

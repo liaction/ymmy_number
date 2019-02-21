@@ -22,7 +22,7 @@ dependencies:
 #  signature: ^1.0.3
 #  audioplayers: ^0.8.2
   flutter_statusbarcolor: any
-  flutter_colorpicker: any
+#  flutter_colorpicker: any
   shared_preferences: ^0.5.1+1
 
 dev_dependencies:
