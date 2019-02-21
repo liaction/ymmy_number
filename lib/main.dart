@@ -163,35 +163,7 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
                                               : Colors.green)
                                           : Colors.white,
                                       onPressed: () {
-                                        if (_canRemoveText) {
-                                          if (YMWY_NUMBERS_DEFAULT
-                                              .contains(_numbersMap[val])) {
-                                            return;
-                                          }
-                                          _numbers.removeAt(val);
-                                          saveText(_numbers);
-                                          _numbersMap.clear();
-                                          _numbersMap.addAll(_numbers.asMap());
-                                          if (_numbers.length >
-                                              YMWY_NUMBERS_DEFAULT.length) {
-                                            overlayEntry.markNeedsBuild();
-                                          }else{
-                                            _dismissBottomSheet();
-                                          }
-                                          _updateWhenTabNumberChange();
-                                          setState(() {});
-                                          return;
-                                        }
-                                        _canRemoveText = false;
-                                        var result = val;
-                                        if (result != _tabIndex) {
-                                          _tabIndex = result;
-                                          _signatureCanvas.clear();
-                                          _tabController.animateTo(result);
-                                        }
-                                        _disableBack = false;
-                                        setState(() {});
-                                        overlayEntry.remove();
+                                        _bottomSheetItemClick(val);
                                       },
                                       child: Text(
                                         _numbersMap[val],
@@ -212,10 +184,15 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
                                             ? YMWY_NUMBERS_DEFAULT
                                                 .contains(_numbersMap[val])
                                             : !_canRemoveText,
-                                        child: Icon(
-                                          Icons.cancel,
-                                          color: Colors.blueGrey,
-                                          size: 14,
+                                        child: GestureDetector(
+                                          onTap: () {
+                                            _bottomSheetItemClick(val);
+                                          },
+                                          child: Icon(
+                                            Icons.cancel,
+                                            color: Colors.blueGrey,
+                                            size: 14,
+                                          ),
                                         ),
                                       ),
                                       right: 0,
@@ -306,6 +283,14 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
           onPressed: _fabClick,
           child: GestureDetector(
             onLongPress: _editAddOrRemoveText,
+            onDoubleTap: () {
+              if (_numbers.length <= YMWY_NUMBERS_DEFAULT.length) {
+                _editAddOrRemoveText();
+                return;
+              }
+              _canRemoveText = true;
+              _fabClick();
+            },
             child: Icon(
               Icons.airplanemode_active,
               color: _currentTextColor,
@@ -523,5 +508,35 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     _tabController = TabController(length: _numbers.length, vsync: this);
     _tabController.addListener(_whenTabChange);
     setState(() {});
+  }
+
+  void _bottomSheetItemClick(int val) {
+    if (_canRemoveText) {
+      if (YMWY_NUMBERS_DEFAULT.contains(_numbersMap[val])) {
+        return;
+      }
+      _numbers.removeAt(val);
+      saveText(_numbers);
+      _numbersMap.clear();
+      _numbersMap.addAll(_numbers.asMap());
+      if (_numbers.length > YMWY_NUMBERS_DEFAULT.length) {
+        overlayEntry.markNeedsBuild();
+      } else {
+        _dismissBottomSheet();
+      }
+      _updateWhenTabNumberChange();
+      setState(() {});
+      return;
+    }
+    _canRemoveText = false;
+    var result = val;
+    if (result != _tabIndex) {
+      _tabIndex = result;
+      _signatureCanvas.clear();
+      _tabController.animateTo(result);
+    }
+    _disableBack = false;
+    setState(() {});
+    overlayEntry.remove();
   }
 }
