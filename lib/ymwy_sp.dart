@@ -21,7 +21,7 @@ Future saveText(List<String> texts) async {
   sharedPreferences.setStringList(SP_KEY_TEXT, texts);
 }
 
-Future<List<String>> getText({List<String> defaultList = YMWY_NUMBERS}) async {
+Future<List<String>> getText({List<String> defaultList = YMWY_NUMBERS_DEFAULT}) async {
   SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
   var result = sharedPreferences.getStringList(SP_KEY_TEXT);
   return result ?? defaultList;

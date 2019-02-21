@@ -3,7 +3,10 @@
 /// Liaction chen.si
 ///
 
-const YMWY_NUMBERS = [
+/// 运行最大数量
+const YMWY_NUMBERS_SUM_MAX = 27;
+/// 默认显示字符
+const YMWY_NUMBERS_DEFAULT = [
   '0',
   '1',
   '2',

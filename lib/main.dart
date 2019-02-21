@@ -6,6 +6,7 @@ import 'package:flutter_colorpicker/material_picker.dart';
 import 'package:flutter_statusbarcolor/flutter_statusbarcolor.dart';
 import 'package:ymwy_number/sign.dart';
 import 'package:ymwy_number/ymwy_sp.dart';
+import 'package:ymwy_number/ymwy_data.dart';
 
 Future main() async {
   runApp(MaterialApp(
@@ -40,6 +41,8 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   Color _currentColor;
   Color _currentTextColor = Colors.white;
   Color _penColor = Colors.black;
+
+  bool _canRemoveText = false;
 
   @override
   void initState() {
@@ -106,47 +109,138 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     return _pageView;
   }
 
+  OverlayState overlayState;
+  OverlayEntry overlayEntry;
+  bool _disableBack = false;
+
   void _fabClick() async {
-    var result = await showModalBottomSheet(
-      context: context,
-      builder: (ctx) => ListView(
-            children: <Widget>[
-              Center(
-                child: Wrap(
-                  children: _numbersMap.keys
-                      .map(
-                        (val) => FlatButton(
-                              color: _tabIndex == val
-                                  ? Colors.green
-                                  : Colors.white,
-                              onPressed: () {
-                                Navigator.of(context).pop(val);
-                              },
-                              child: Text(
-                                _numbersMap[val],
-                                style: TextStyle(
-                                  fontSize: 23.0,
-                                  color: _tabIndex == val
-                                      ? Colors.white
-                                      : Colors.blueGrey,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                      )
-                      .toList(),
-                ),
+    overlayState = Overlay.of(context);
+    overlayEntry = OverlayEntry(builder: (ctx) => _createBottomSheet());
+    _disableBack = true;
+    overlayState.insert(overlayEntry);
+  }
+
+  Widget _createBottomSheet() {
+    double _height = MediaQuery.of(context).size.height / 2;
+    Widget _w = Material(
+      color: Colors.black26,
+      child: Stack(
+        children: <Widget>[
+          Positioned(
+            child: GestureDetector(
+              onTap: () {
+                _dismissBottomSheet();
+                setState(() {});
+              },
+              child: Container(
+                color: Colors.transparent,
               ),
-            ],
+            ),
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: _height,
           ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            top: _height,
+            child: Container(
+              color: Colors.white,
+              child: ListView(
+                children: <Widget>[
+                  Center(
+                    child: Wrap(
+                      children: _numbersMap.keys
+                          .map(
+                            (val) => Stack(
+                                  children: <Widget>[
+                                    FlatButton(
+                                      color: _tabIndex == val
+                                          ? (_canRemoveText
+                                              ? Colors.white
+                                              : Colors.green)
+                                          : Colors.white,
+                                      onPressed: () {
+                                        if (_canRemoveText) {
+                                          if (YMWY_NUMBERS_DEFAULT
+                                              .contains(_numbersMap[val])) {
+                                            return;
+                                          }
+                                          _numbers.removeAt(val);
+                                          saveText(_numbers);
+                                          _numbersMap.clear();
+                                          _numbersMap.addAll(_numbers.asMap());
+                                          if (_numbers.length >
+                                              YMWY_NUMBERS_DEFAULT.length) {
+                                            overlayEntry.markNeedsBuild();
+                                          }else{
+                                            _dismissBottomSheet();
+                                          }
+                                          _updateWhenTabNumberChange();
+                                          setState(() {});
+                                          return;
+                                        }
+                                        _canRemoveText = false;
+                                        var result = val;
+                                        if (result != _tabIndex) {
+                                          _tabIndex = result;
+                                          _signatureCanvas.clear();
+                                          _tabController.animateTo(result);
+                                        }
+                                        _disableBack = false;
+                                        setState(() {});
+                                        overlayEntry.remove();
+                                      },
+                                      child: Text(
+                                        _numbersMap[val],
+                                        style: TextStyle(
+                                          fontSize: 23.0,
+                                          color: _tabIndex == val
+                                              ? (_canRemoveText
+                                                  ? Colors.blueGrey
+                                                  : Colors.white)
+                                              : Colors.blueGrey,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      child: Offstage(
+                                        offstage: _canRemoveText
+                                            ? YMWY_NUMBERS_DEFAULT
+                                                .contains(_numbersMap[val])
+                                            : !_canRemoveText,
+                                        child: Icon(
+                                          Icons.cancel,
+                                          color: Colors.blueGrey,
+                                          size: 14,
+                                        ),
+                                      ),
+                                      right: 0,
+                                      top: 0,
+                                    ),
+                                  ],
+                                ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-    if (result != null && result != _tabIndex) {
-      setState(() {
-        _tabIndex = result;
-        _signatureCanvas.clear();
-        _tabController.animateTo(result);
-      });
-    }
+    return _w;
+  }
+
+  void _dismissBottomSheet() {
+    overlayEntry.remove();
+    _disableBack = false;
+    _canRemoveText = false;
   }
 
   @override
@@ -159,106 +253,115 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
         penColor: _penColor,
       );
     }
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: _currentColor,
-        title: GestureDetector(
-          onLongPress: _showColorPick,
-          child: Text(
-            "雨檬识字",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: _currentTextColor,
+    return WillPopScope(
+      onWillPop: () {
+        if (!_disableBack) {
+          return Future.value(true);
+        }
+        _dismissBottomSheet();
+        return Future.value(false);
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: _currentColor,
+          title: GestureDetector(
+            onLongPress: _showColorPick,
+            child: Text(
+              "雨檬识字",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: _currentTextColor,
+              ),
             ),
           ),
-        ),
-        leading: Opacity(
-          opacity: _tabIndex == 0 ? 0 : 1,
-          child: IconButton(
-              iconSize: 36.0,
-              color: _currentTextColor,
-              icon: Icon(Icons.keyboard_arrow_left),
-              onPressed: () {
-                if (_tabIndex == 0) return;
-                _tabController.animateTo(_tabIndex - 1);
-              }),
-        ),
-        actions: <Widget>[
-          Opacity(
-            opacity: _tabIndex == _numbers.length - 1 ? 0 : 1,
+          leading: Opacity(
+            opacity: _tabIndex == 0 ? 0 : 1,
             child: IconButton(
                 iconSize: 36.0,
                 color: _currentTextColor,
-                icon: Icon(Icons.keyboard_arrow_right),
+                icon: Icon(Icons.keyboard_arrow_left),
                 onPressed: () {
-                  if (_tabIndex == _numbers.length - 1) return;
-                  _tabController.animateTo(_tabIndex + 1);
+                  if (_tabIndex == 0) return;
+                  _tabController.animateTo(_tabIndex - 1);
                 }),
           ),
-        ],
-        centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _currentColor,
-        elevation: 1.0,
-        onPressed: _fabClick,
-        child: GestureDetector(
-          onLongPress: _editAddOrRemoveText,
-          child: Icon(
-            Icons.airplanemode_active,
-            color: _currentTextColor,
-            size: 36.0,
+          actions: <Widget>[
+            Opacity(
+              opacity: _tabIndex == _numbers.length - 1 ? 0 : 1,
+              child: IconButton(
+                  iconSize: 36.0,
+                  color: _currentTextColor,
+                  icon: Icon(Icons.keyboard_arrow_right),
+                  onPressed: () {
+                    if (_tabIndex == _numbers.length - 1) return;
+                    _tabController.animateTo(_tabIndex + 1);
+                  }),
+            ),
+          ],
+          centerTitle: true,
+        ),
+        floatingActionButton: FloatingActionButton(
+          backgroundColor: _currentColor,
+          elevation: 1.0,
+          onPressed: _fabClick,
+          child: GestureDetector(
+            onLongPress: _editAddOrRemoveText,
+            child: Icon(
+              Icons.airplanemode_active,
+              color: _currentTextColor,
+              size: 36.0,
+            ),
           ),
         ),
-      ),
-      body: _currentOrientation == Orientation.portrait
-          ? Stack(
-              children: <Widget>[
-                Column(
-                  children: <Widget>[
-                    _signatureCanvas,
-                  ],
-                ),
-                Container(
-                  height: MediaQuery.of(context).size.height / 4.0,
-                  child: _createPageView(context),
-                ),
-                Positioned(
-                  child: _buildBottomLayout(),
-                  bottom: 0.0,
-                  right: 0.0,
-                  left: 0.0,
-                ),
-              ],
-            )
-          : Stack(
-              children: <Widget>[
-                Positioned(
-                  child: Column(
+        body: _currentOrientation == Orientation.portrait
+            ? Stack(
+                children: <Widget>[
+                  Column(
                     children: <Widget>[
                       _signatureCanvas,
                     ],
                   ),
-                  left: 0.0,
-                  right: 0.0,
-                  top: 0.0,
-                  bottom: 0.0,
-                ),
-                Positioned(
-                  left: 0.0,
-                  top: 0.0,
-                  right: MediaQuery.of(context).size.width * 3 / 4.0,
-                  bottom: 40.0,
-                  child: _createPageView(context),
-                ),
-                Positioned(
-                  child: _buildBottomLayout(),
-                  bottom: 0.0,
-                  right: 0.0,
-                  left: 0.0,
-                ),
-              ],
-            ),
+                  Container(
+                    height: MediaQuery.of(context).size.height / 4.0,
+                    child: _createPageView(context),
+                  ),
+                  Positioned(
+                    child: _buildBottomLayout(),
+                    bottom: 0.0,
+                    right: 0.0,
+                    left: 0.0,
+                  ),
+                ],
+              )
+            : Stack(
+                children: <Widget>[
+                  Positioned(
+                    child: Column(
+                      children: <Widget>[
+                        _signatureCanvas,
+                      ],
+                    ),
+                    left: 0.0,
+                    right: 0.0,
+                    top: 0.0,
+                    bottom: 0.0,
+                  ),
+                  Positioned(
+                    left: 0.0,
+                    top: 0.0,
+                    right: MediaQuery.of(context).size.width * 3 / 4.0,
+                    bottom: 40.0,
+                    child: _createPageView(context),
+                  ),
+                  Positioned(
+                    child: _buildBottomLayout(),
+                    bottom: 0.0,
+                    right: 0.0,
+                    left: 0.0,
+                  ),
+                ],
+              ),
+      ),
     );
   }
 
@@ -291,7 +394,7 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-              title: const Text('自定义颜色'),
+              title: const Text('自定义主题颜色'),
               content: SingleChildScrollView(
                 child: MaterialPicker(
                   pickerColor: _pickerColor,
@@ -348,6 +451,12 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
   /// 编辑文字
   ///
   Future _editAddOrRemoveText() async {
+    // 设置最大长度,超过则不允许继续添加
+    if (_numbers.length >= YMWY_NUMBERS_SUM_MAX) {
+      _canRemoveText = true;
+      _fabClick();
+      return;
+    }
     String result = await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
@@ -413,5 +522,6 @@ class _MyAppState extends State<MyApp> with TickerProviderStateMixin {
     _tabController.removeListener(_whenTabChange);
     _tabController = TabController(length: _numbers.length, vsync: this);
     _tabController.addListener(_whenTabChange);
+    setState(() {});
   }
 }
