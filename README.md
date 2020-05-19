@@ -11,5 +11,4 @@
 <img src="./captures/device-2019-02-21-145545.png" width="30%"  />
 <img src="./captures/device-2019-02-21-145625.png" width="30%"  />
 <img src="./captures/device-2019-02-21-145822.png" width="30%"  />
-<img src="./captures/device-2019-02-21-145845.png" width="30%"  />
 
